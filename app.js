@@ -1,30 +1,27 @@
-// State & Data Default jika LocalStorage kosong
+// State default dengan susunan objek agar urutan pembuatan dinamis terjaga
 let state = JSON.parse(localStorage.getItem('money_pwa_state')) || {
     wallets: {
+        "all_wallets": { id: "all_wallets", name: "⭐ Semua Wallet (Gabungan)", balance: 0 },
         "wallet_1": { id: "wallet_1", name: "Dompet Utama", balance: 0 },
         "wallet_2": { id: "wallet_2", name: "Tabungan", balance: 0 }
     },
-    currentWallet: "wallet_1",
+    currentWallet: "all_wallets", // Default masuk ke halaman gabungan
     transactions: []
 };
 
 let currentType = 'Pemasukan';
 
-// Format Angka ke Rupiah yang rapi
 function formatIDR(num) {
     return 'Rp ' + Number(num).toLocaleString('id-ID');
 }
 
-// Format waktu komplit (Hari, Tanggal Bulan Tahun Jam)
 function formatTimestamp(dateStr) {
     const d = new Date(dateStr);
     const hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][d.getDay()];
     const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][d.getMonth()];
-    
     const tgl = String(d.getDate()).padStart(2, '0');
     const jam = String(d.getHours()).padStart(2, '0');
     const menit = String(d.getMinutes()).padStart(2, '0');
-
     return `${hari}, ${tgl} ${bulan} ${d.getFullYear()} • ${jam}:${menit}`;
 }
 
@@ -33,23 +30,39 @@ function saveData() {
     render();
 }
 
-// Navigasi Tipe Transaksi
 function setTxType(type) {
     currentType = type;
     const btns = { 'Pemasukan': 'btnInc', 'Pengeluaran': 'btnExp', 'Transfer': 'btnTrf' };
     const colors = { 'Pemasukan': 'border-green-500 bg-green-50 text-green-600', 'Pengeluaran': 'border-red-500 bg-red-50 text-red-600', 'Transfer': 'border-blue-500 bg-blue-50 text-blue-600' };
 
     Object.keys(btns).forEach(k => {
-        const el = document.getElementById(btns[k]);
-        el.className = "py-2 text-sm font-bold rounded-lg border-2 border-transparent bg-gray-100 text-gray-500";
+        document.getElementById(btns[k]).className = "py-2 text-sm font-bold rounded-lg border-2 border-transparent bg-gray-100 text-gray-500";
     });
 
     document.getElementById(btns[type]).className = `py-2 text-sm font-bold rounded-lg border-2 ${colors[type]}`;
     document.getElementById('transferTargetDiv').className = type === 'Transfer' ? 'block' : 'hidden';
 }
 
-// Mengubah Nama Wallet
+// Fitur Tambah Wallet Baru
+function addWallet() {
+    const walletCount = Object.keys(state.wallets).length; // Menghitung total wallet yang ada
+    const defaultName = `Wallet ${walletCount}`;
+    const newName = prompt("Masukkan nama wallet baru Anda:", defaultName);
+    
+    if (newName && newName.trim() !== "") {
+        const uniqueId = 'wallet_' + Date.now();
+        state.wallets[uniqueId] = {
+            id: uniqueId,
+            name: newName.trim(),
+            balance: 0
+        };
+        state.currentWallet = uniqueId; // Otomatis berpindah ke wallet baru setelah dibuat
+        saveData();
+    }
+}
+
 function renameWallet() {
+    if (state.currentWallet === "all_wallets") return;
     const newName = prompt("Masukkan nama baru untuk wallet ini:", state.wallets[state.currentWallet].name);
     if (newName && newName.trim() !== "") {
         state.wallets[state.currentWallet].name = newName.trim();
@@ -57,8 +70,9 @@ function renameWallet() {
     }
 }
 
-// Proses Transaksi Baru (Termasuk Transfer)
 function saveTransaction() {
+    if (state.currentWallet === "all_wallets") return;
+
     const amountEl = document.getElementById('amount');
     const descEl = document.getElementById('description');
     const targetEl = document.getElementById('targetWalletSelect');
@@ -86,7 +100,6 @@ function saveTransaction() {
             return;
         }
 
-        // Eksekusi Pemotongan dan Penambahan Saldo Transfer
         state.wallets[state.currentWallet].balance -= amount;
         state.wallets[targetEl.value].balance += amount;
 
@@ -100,7 +113,6 @@ function saveTransaction() {
             date: new Date().toISOString()
         });
     } else {
-        // Pemasukan atau Pengeluaran Biasa
         if (currentType === 'Pemasukan') {
             state.wallets[state.currentWallet].balance += amount;
         } else {
@@ -117,59 +129,91 @@ function saveTransaction() {
         });
     }
 
-    // Reset Form Input
     amountEl.value = '';
     descEl.value = '';
     saveData();
 }
 
 function clearHistory() {
-    if (confirm("Apakah Anda yakin ingin menghapus seluruh riwayat dan mereset saldo?")) {
+    if (confirm("Apakah Anda yakin ingin menghapus seluruh riwayat dan mereset semua saldo?")) {
         state.transactions = [];
         Object.keys(state.wallets).forEach(k => state.wallets[k].balance = 0);
         saveData();
     }
 }
 
-// Render Data ke Tampilan UI
 function render() {
-    // Render Dropdown Pilihan Wallet
     const walletSelect = document.getElementById('walletSelect');
     const targetSelect = document.getElementById('targetWalletSelect');
     
     walletSelect.innerHTML = '';
     targetSelect.innerHTML = '';
 
+    // Render pilihan wallet di dropdown
     Object.keys(state.wallets).forEach(key => {
         const w = state.wallets[key];
         walletSelect.innerHTML += `<option value="${w.id}" ${state.currentWallet === w.id ? 'selected' : ''}>${w.name}</option>`;
-        targetSelect.innerHTML += `<option value="${w.id}">${w.name}</option>`;
-    });
-
-    // Tampilkan Saldo Saat ini
-    const activeWallet = state.wallets[state.currentWallet];
-    document.getElementById('walletBalance').innerText = formatIDR(activeWallet.balance);
-
-    // Hitung Akumulasi In/Out khusus wallet aktif untuk chart lingkaran
-    let incTotal = 0;
-    let expTotal = 0;
-
-    const filteredTx = state.transactions.filter(t => t.walletId === state.currentWallet || t.targetWalletId === state.currentWallet);
-    
-    filteredTx.forEach(t => {
-        if (t.type === 'Pemasukan') incTotal += t.amount;
-        if (t.type === 'Pengeluaran') expTotal += t.amount;
-        // Kasus transfer disesuaikan status walletnya
-        if (t.type === 'Transfer') {
-            if (t.walletId === state.currentWallet) expTotal += t.amount; // keluar dari wallet ini
-            if (t.targetWalletId === state.currentWallet) incTotal += t.amount; // masuk ke wallet ini
+        
+        // Pilihan transfer tidak memuat "Gabungan" & tidak memuat dirinya sendiri
+        if (w.id !== "all_wallets") {
+            targetSelect.innerHTML += `<option value="${w.id}">${w.name}</option>`;
         }
     });
 
+    // Kontrol Visibilitas Form Input berdasarkan tipe Wallet yang aktif
+    const isAllWallets = state.currentWallet === "all_wallets";
+    if (isAllWallets) {
+        document.getElementById('formSection').classList.add('hidden');
+        document.getElementById('allWalletsInfo').classList.remove('hidden');
+        document.getElementById('btnRename').classList.add('opacity-30', 'pointer-events-none');
+        document.getElementById('balanceLabel').innerText = "Total Saldo (Semua Wallet)";
+        document.getElementById('historyTitle').innerText = "Riwayat Semua Transaksi";
+    } else {
+        document.getElementById('formSection').classList.remove('hidden');
+        document.getElementById('allWalletsInfo').classList.add('hidden');
+        document.getElementById('btnRename').classList.remove('opacity-30', 'pointer-events-none');
+        document.getElementById('balanceLabel').innerText = `Saldo ${state.wallets[state.currentWallet].name}`;
+        document.getElementById('historyTitle').innerText = "Riwayat Transaksi";
+    }
+
+    // Kalkulasi Saldo & Riwayat Transaksi
+    let totalBalance = 0;
+    let incTotal = 0;
+    let expTotal = 0;
+    let filteredTx = [];
+
+    if (isAllWallets) {
+        // Hitung total gabungan sesungguhnya dari seluruh sub-wallet
+        Object.keys(state.wallets).forEach(k => {
+            if (k !== "all_wallets") totalBalance += state.wallets[k].balance;
+        });
+        
+        filteredTx = state.transactions; // Tampilkan seluruh histori tanpa filter
+        
+        filteredTx.forEach(t => {
+            if (t.type === 'Pemasukan') incTotal += t.amount;
+            if (t.type === 'Pengeluaran') expTotal += t.amount;
+            // Dalam cakupan gabungan global, transaksi 'Transfer' antar wallet internal tidak merubah total uang masuk/keluar luar
+        });
+    } else {
+        totalBalance = state.wallets[state.currentWallet].balance;
+        filteredTx = state.transactions.filter(t => t.walletId === state.currentWallet || t.targetWalletId === state.currentWallet);
+        
+        filteredTx.forEach(t => {
+            if (t.type === 'Pemasukan') incTotal += t.amount;
+            if (t.type === 'Pengeluaran') expTotal += t.amount;
+            if (t.type === 'Transfer') {
+                if (t.walletId === state.currentWallet) expTotal += t.amount;
+                if (t.targetWalletId === state.currentWallet) incTotal += t.amount;
+            }
+        });
+    }
+
+    document.getElementById('walletBalance').innerText = formatIDR(totalBalance);
     document.getElementById('totalIncome').innerText = formatIDR(incTotal);
     document.getElementById('totalExpense').innerText = formatIDR(expTotal);
 
-    // Logika Hitung Persentase & Render Grafik Lingkaran
+    // Update Chart Lingkaran
     const combined = incTotal + expTotal;
     const chartEl = document.getElementById('chart');
     if (combined > 0) {
@@ -181,12 +225,12 @@ function render() {
         chartEl.style.setProperty('--p-in', `0%`);
     }
 
-    // Render Riwayat List
+    // Render List Transaksi
     const historyList = document.getElementById('historyList');
     historyList.innerHTML = '';
 
     if (filteredTx.length === 0) {
-        historyList.innerHTML = `<div class="text-center py-8 text-sm text-gray-400 italic">Belum ada transaksi di wallet ini.</div>`;
+        historyList.innerHTML = `<div class="text-center py-8 text-sm text-gray-400 italic">Belum ada transaksi tercatat.</div>`;
         return;
     }
 
@@ -198,17 +242,25 @@ function render() {
         if (t.type === 'Pemasukan') {
             amtSign = '+';
             colorClass = 'text-green-600 bg-green-50';
+            if (isAllWallets) title = `[${state.wallets[t.walletId]?.name || 'Wallet'}] ${t.desc}`;
         } else if (t.type === 'Pengeluaran') {
             amtSign = '-';
             colorClass = 'text-red-600 bg-red-50';
+            if (isAllWallets) title = `[${state.wallets[t.walletId]?.name || 'Wallet'}] ${t.desc}`;
         } else if (t.type === 'Transfer') {
-            if (t.walletId === state.currentWallet) {
-                amtSign = '-';
+            if (isAllWallets) {
+                amtSign = '⇄';
                 colorClass = 'text-blue-600 bg-blue-50';
+                title = `Transfer: ${state.wallets[t.walletId]?.name} ➔ ${state.wallets[t.targetWalletId]?.name} (${t.desc.split(': ').pop()})`;
             } else {
-                amtSign = '+';
-                title = `Menerima ${t.desc}`;
-                colorClass = 'text-green-600 bg-green-50';
+                if (t.walletId === state.currentWallet) {
+                    amtSign = '-';
+                    colorClass = 'text-red-600 bg-red-50';
+                } else {
+                    amtSign = '+';
+                    title = `Menerima Transfer: ${t.desc.split(': ').pop()}`;
+                    colorClass = 'text-green-600 bg-green-50';
+                }
             }
         }
 
@@ -226,12 +278,9 @@ function render() {
     });
 }
 
-// Event listener saat user berganti jenis wallet di dropdown
 document.getElementById('walletSelect').addEventListener('change', (e) => {
     state.currentWallet = e.target.value;
     saveData();
 });
 
-// Jalankan sistem saat pertama kali dibuka
 render();
-  
