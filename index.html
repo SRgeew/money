@@ -8,7 +8,6 @@
     <meta name="theme-color" content="#2563eb">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Desain lingkaran persentase menggunakan conic-gradient */
         .chart-circle {
             background: conic-gradient(#ef4444 var(--p-out, 0%), #22c55e 0% var(--p-in, 0%), #e5e7eb 0%);
         }
@@ -16,17 +15,19 @@
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans max-w-md mx-auto min-h-screen shadow-lg flex flex-col justify-between">
 
-    <!-- Header & Ringkasan -->
     <header class="bg-blue-600 text-white p-5 rounded-b-2xl sticky top-0 z-10 shadow-md">
         <h1 class="text-xl font-bold tracking-wide mb-4 text-center">money</h1>
         
-        <!-- Dropdown & Edit Nama Wallet -->
-        <div class="flex items-center justify-between bg-blue-700 p-2 rounded-lg mb-4">
-            <select id="walletSelect" class="bg-transparent font-semibold focus:outline-none cursor-pointer text-white"></select>
-            <button onclick="renameWallet()" class="text-xs bg-blue-500 hover:bg-blue-800 px-3 py-1 rounded transition">Ubah Nama</button>
+        <div class="flex flex-col gap-2 bg-blue-700 p-2.5 rounded-xl mb-4">
+            <div class="flex items-center justify-between">
+                <select id="walletSelect" class="bg-transparent font-bold focus:outline-none cursor-pointer text-white text-base max-w-[60%] truncate"></select>
+                <div class="flex gap-1.5">
+                    <button id="btnRename" onclick="renameWallet()" class="text-[11px] bg-blue-500 hover:bg-blue-800 px-2.5 py-1 rounded-md transition">Ubah Nama</button>
+                    <button onclick="addWallet()" class="text-[11px] bg-green-600 hover:bg-green-700 px-2.5 py-1 rounded-md font-bold transition">＋ Wallet</button>
+                </div>
+            </div>
         </div>
 
-        <!-- Donut Chart & Ringkasan Angka -->
         <div class="flex items-center gap-5 bg-white/10 p-4 rounded-xl">
             <div id="chart" class="chart-circle w-20 h-20 rounded-full flex items-center justify-center transition-all duration-500 shadow-inner">
                 <div class="bg-blue-600 w-14 h-14 rounded-full flex items-center justify-center text-[10px] font-bold text-white text-center shadow">
@@ -34,7 +35,7 @@
                 </div>
             </div>
             <div class="flex-1 space-y-1">
-                <div class="text-xs text-blue-200">Total Saldo Wallet</div>
+                <div id="balanceLabel" class="text-xs text-blue-200">Total Saldo Wallet</div>
                 <div id="walletBalance" class="text-xl font-black">Rp 0</div>
                 <div class="flex gap-2 text-[11px] pt-1 border-t border-white/20">
                     <span class="text-green-300">▲ <span id="totalIncome">Rp 0</span></span>
@@ -44,11 +45,9 @@
         </div>
     </header>
 
-    <!-- Konten Utama (Scrollable) -->
-    <main class="p-4 flex-1 space-y-6 overflow-y-auto max-h-[calc(100vh-280px)]">
+    <main class="p-4 flex-1 space-y-6 overflow-y-auto max-h-[calc(100vh-290px)]">
         
-        <!-- Formulir Input Transaksi Cepat -->
-        <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <section id="formSection" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
             <h2 class="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wider">Catat Transaksi</h2>
             <div class="grid grid-cols-3 gap-2 mb-3">
                 <button onclick="setTxType('Pemasukan')" id="btnInc" class="py-2 text-sm font-bold rounded-lg border-2 border-green-500 bg-green-50 text-green-600">Pemasukan</button>
@@ -67,26 +66,25 @@
             </div>
         </section>
 
-        <!-- Histori Transaksi -->
+        <div id="allWalletsInfo" class="hidden bg-blue-50 border border-blue-200 p-3 rounded-xl text-center text-xs text-blue-700 font-medium">
+            💡 Mode Gabungan aktif. Untuk menambah transaksi atau transfer, silakan pilih salah satu wallet spesifik di atas.
+        </div>
+
         <section>
             <div class="flex justify-between items-center mb-3">
-                <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">Riwayat Transaksi</h2>
+                <h2 id="historyTitle" class="text-sm font-bold text-gray-500 uppercase tracking-wider">Riwayat Transaksi</h2>
                 <button onclick="clearHistory()" class="text-xs text-red-500 hover:underline">Hapus Semua</button>
             </div>
-            <div id="historyList" class="space-y-2.5">
-                <!-- Data histori akan masuk di sini -->
-            </div>
+            <div id="historyList" class="space-y-2.5"></div>
         </section>
     </main>
 
-    <!-- Footer Fitur PWA -->
     <footer class="p-3 text-center text-xs text-gray-400 bg-gray-100 border-t">
         Aplikasi Berjalan Lokal & Aman • <span class="font-bold text-blue-600">money</span>
     </footer>
 
     <script src="app.js"></script>
     <script>
-        // Registrasi Service Worker agar bisa diinstal di HP
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('data:text/javascript,self.addEventListener("fetch",()=>{})');
         }
